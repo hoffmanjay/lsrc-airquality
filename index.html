@@ -354,7 +354,7 @@
   <div class="header">
     <div class="coalition-tag">Lincoln Square Residents Coalition</div>
     <h1>Air Quality <em>Monitor</em></h1>
-    <div class="subtitle">PM2.5 Particulate Data Collection · LSRC.NYC</div>
+    <div class="subtitle">PM2.5 & PM10 Particulate Data Collection · LSRC.NYC</div>
   </div>
 
   <div class="card">
@@ -370,6 +370,19 @@
       <div class="aqi-badge" id="aqiBadge">
         <div class="dot" id="aqiDot"></div>
         <span id="aqiText"></span>
+      </div>
+    </div>
+
+    <!-- PM10 -->
+    <div class="field">
+      <label>PM10 Reading <span class="required">*</span></label>
+      <div class="pm-wrapper">
+        <input class="pm-input" type="number" id="pm10" placeholder="0.0" min="0" max="999" step="0.1" required>
+        <div class="pm-unit">µg/m³<br>PM10</div>
+      </div>
+      <div class="aqi-badge" id="aqiBadge10">
+        <div class="dot" id="aqiDot10"></div>
+        <span id="aqiText10"></span>
       </div>
     </div>
 
@@ -395,6 +408,7 @@
           <option>2 W 67</option>
           <option>10 W 66</option>
           <option>15 W 67</option>
+          <option>17 W 67</option>
           <option>27 W 67</option>
           <option>33 W 67</option>
           <option>39 W 67</option>
@@ -403,6 +417,7 @@
           <option>150 Columbus</option>
           <option>55 CPW</option>
           <option>65 CPW</option>
+          <option>75 CPW</option>
         </select>
       </div>
     </div>
@@ -435,7 +450,7 @@
 
 <script>
   // ─── CONFIGURATION ────────────────────────────────────────────────────
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyYmYSuQFFGHsjADFGZnIq7RtgIBd-eWJNZw4PmuO4LxzjBwBtsMrJ6OYndfYHNUScSpA/exec';
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwBOGTp2DtsFX6ftJuD_FbE3rUx-gsguHKWBFeyBfErygTh8LeZxiQJ6xmcjp7jRrMgJQ/exec';
   // ──────────────────────────────────────────────────────────────────────
 
   // Set default date/time to now
@@ -453,19 +468,35 @@
     { max: 9999, label: 'Hazardous',       bg: '#e8c8c0', color: '#6a1010',  dot: '#a04040' },
   ];
 
-  document.getElementById('pm25').addEventListener('input', function() {
-    const val = parseFloat(this.value);
-    const badge = document.getElementById('aqiBadge');
+  // PM10 AQI thresholds (WHO/EPA)
+  const AQI_LEVELS_PM10 = [
+    { max: 54,   label: 'Good',            bg: '#d4edda', color: '#2d6a4f',  dot: '#40c074' },
+    { max: 154,  label: 'Moderate',        bg: '#fff3cd', color: '#856404',  dot: '#f0c040' },
+    { max: 254,  label: 'Unhealthy (Sensitive)', bg: '#ffe5cc', color: '#8a4500', dot: '#f08030' },
+    { max: 354,  label: 'Unhealthy',       bg: '#fdeaea', color: '#7a2020',  dot: '#e05050' },
+    { max: 424,  label: 'Very Unhealthy',  bg: '#f0d0e8', color: '#5a1060',  dot: '#c060b0' },
+    { max: 9999, label: 'Hazardous',       bg: '#e8c8c0', color: '#6a1010',  dot: '#a04040' },
+  ];
+
+  function updateBadge(val, levels, badgeId, dotId, textId) {
+    const badge = document.getElementById(badgeId);
     if (isNaN(val) || val < 0) { badge.classList.remove('visible'); return; }
-    const level = AQI_LEVELS.find(l => val <= l.max);
+    const level = levels.find(l => val <= l.max);
     if (!level) return;
     badge.style.background = level.bg;
-    badge.style.borderColor = level.color;
-    badge.style.color = level.color;
     badge.style.border = `1.5px solid ${level.color}`;
-    document.getElementById('aqiDot').style.background = level.dot;
-    document.getElementById('aqiText').textContent = `EPA Category: ${level.label}`;
+    badge.style.color = level.color;
+    document.getElementById(dotId).style.background = level.dot;
+    document.getElementById(textId).textContent = `EPA Category: ${level.label}`;
     badge.classList.add('visible');
+  }
+
+  document.getElementById('pm25').addEventListener('input', function() {
+    updateBadge(parseFloat(this.value), AQI_LEVELS, 'aqiBadge', 'aqiDot', 'aqiText');
+  });
+
+  document.getElementById('pm10').addEventListener('input', function() {
+    updateBadge(parseFloat(this.value), AQI_LEVELS_PM10, 'aqiBadge10', 'aqiDot10', 'aqiText10');
   });
 
   // Session log
@@ -492,8 +523,8 @@
       return `
         <div class="log-entry">
           <div class="log-building">${r.building}</div>
-          <div class="log-pm" style="color:${pmColor}">${r.pm25} <span style="font-size:11px;font-family:'DM Mono',monospace;font-weight:400;color:#aaa">µg/m³</span></div>
-          <div class="log-detail">${r.date} ${r.time} · ${r.name}${r.notes ? ' · ' + r.notes : ''}</div>
+          <div class="log-pm" style="color:${pmColor}">PM2.5: ${r.pm25} <span style="font-size:11px;font-family:'DM Mono',monospace;font-weight:400;color:#aaa">µg/m³</span></div>
+          <div class="log-detail">PM10: ${r.pm10} µg/m³ · ${r.date} ${r.time} · ${r.name}${r.notes ? ' · ' + r.notes : ''}</div>
           <div class="log-time">✓</div>
         </div>`;
     }).join('');
@@ -501,6 +532,7 @@
 
   async function handleSubmit() {
     const pm25 = parseFloat(document.getElementById('pm25').value);
+    const pm10 = parseFloat(document.getElementById('pm10').value);
     const date = document.getElementById('readingDate').value;
     const time = document.getElementById('readingTime').value;
     const building = document.getElementById('building').value;
@@ -509,12 +541,13 @@
 
     // Validate
     if (!pm25 && pm25 !== 0) return showStatus('error', 'Please enter a PM2.5 reading.');
+    if (!pm10 && pm10 !== 0) return showStatus('error', 'Please enter a PM10 reading.');
     if (!date) return showStatus('error', 'Please select a date.');
     if (!time) return showStatus('error', 'Please select a time.');
     if (!building) return showStatus('error', 'Please select your building.');
     if (!name) return showStatus('error', 'Please enter your name.');
 
-    const payload = { pm25, date, time, building, notes, name, submittedAt: new Date().toISOString() };
+    const payload = { pm25, pm10, date, time, building, notes, name, submittedAt: new Date().toISOString() };
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -527,7 +560,9 @@
       updateLog();
       showStatus('success', '✓ Demo mode: Reading recorded locally (configure Apps Script URL to send to Google Sheets).');
       document.getElementById('pm25').value = '';
+      document.getElementById('pm10').value = '';
       document.getElementById('aqiBadge').classList.remove('visible');
+      document.getElementById('aqiBadge10').classList.remove('visible');
       btn.disabled = false;
       return;
     }
@@ -543,7 +578,9 @@
       updateLog();
       showStatus('success', '✓ Reading submitted successfully. Thank you!');
       document.getElementById('pm25').value = '';
+      document.getElementById('pm10').value = '';
       document.getElementById('aqiBadge').classList.remove('visible');
+      document.getElementById('aqiBadge10').classList.remove('visible');
     } catch (err) {
       showStatus('error', 'Submission failed. Check your connection and try again.');
     }
